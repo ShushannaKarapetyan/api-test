@@ -158,7 +158,7 @@ class Caller
      */
     public function get()
     {
-        return $this->users;
+        return array_values($this->users);
     }
 
     /**
@@ -175,6 +175,6 @@ class Caller
             }
         }
 
-        return $users;
+        return array_values($users);
     }
 }
