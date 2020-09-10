@@ -2,104 +2,172 @@
 
 namespace App;
 
+use Exception;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
+
 class Caller
 {
-    /**
-     * Caller constructor.
-     */
-    public function __construct()
-    {
-
-    }
+    public $users;
 
     /**
      * @param $api
      * @param $method
      * @return bool|string
+     * @throws GuzzleException
      */
     public function make($api, $method)
     {
-        $curl = curl_init($api);
+        $this->users = (new Client())->request("$method", $api)->getBody();
 
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        //curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
-
-        curl_setopt($curl, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'User-Agent: Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 YaBrowser/16.3.0.7146 Yowser/2.5 Safari/537.36',
-        ]);
-
-        $response = curl_exec($curl);
-
-        curl_close($curl);
-
-        return $response;
+        return $this;
     }
 
     /**
-     * @param $users
-     * @param $position
+     * @param $column
      * @param $operator
      * @param $value
-     * @return array
+     * @return mixed
+     * @throws Exception
      */
-    public function where($users, $position, $operator, $value)
+    public function where($column, $operator, $value)
     {
-        /*$users = $this->make('https://api.github.com/users', 'get');*/
+        $users = $this->users;
 
-        $users = json_decode($users, true);
+        if (gettype($this->users) === 'object') {
+            $users = json_decode($this->users);
+        }
 
-        $filteredUsers = [];
+        switch ($operator) {
+            case '=':
+                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                    if ($user->$column === $value) {
+                        return $users[] = $user;
+                    }
+                }, $users));
 
-        if ($operator === '=') {
-            foreach ($users as $user) {
-                if ($user[$position] === $value) {
-                    $filteredUsers[] = $user;
+                break;
+
+            case ">":
+                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                    if ($user->$column > $value) {
+                        return $users[] = $user;
+                    }
+                }, $users));
+
+                break;
+
+            case "<":
+                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                    if ($user->$column < $value) {
+                        return $users[] = $user;
+                    }
+                }, $users));
+
+                break;
+
+            case ">=":
+                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                    if ($user->$column >= $value) {
+                        return $users[] = $user;
+                    }
+                }, $users));
+
+                break;
+
+            case "<=":
+                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                    if ($user->$column <= $value) {
+                        return $users[] = $user;
+                    }
+                }, $users));
+
+                break;
+
+            case '<>':
+            case "!=":
+                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                    if ($user->$column <> $value) {
+                        return $users[] = $user;
+                    }
+                }, $users));
+
+                break;
+
+            default:
+                throw new Exception('Operator is not correct.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param $parameter
+     * @param $sort
+     * @return Caller
+     * @throws Exception
+     * @retur n Caller
+     */
+    public function sort($parameter, $sort)
+    {
+        $parameters = [];
+        $usersArray = [];
+
+        foreach ($this->users as $key => $user) {
+            $parameters[$user->id][] = $user->$parameter;
+        }
+
+        switch ($sort) {
+            case 'asc':
+            case 'ASC':
+                asort($parameters);
+                break;
+            case "desc":
+            case "DESC":
+                arsort($parameters);
+                break;
+            default:
+                throw new Exception('Sorting value can be asc or desc.');
+        }
+
+        $userIds = array_keys($parameters);
+
+        foreach ($userIds as $id) {
+            foreach ($this->users as $user) {
+                if ($user->id === $id) {
+                    $usersArray[] = $user;
                 }
             }
         }
 
-        return $filteredUsers;
+        $this->users = $usersArray;
+
+        return $this;
     }
 
     /**
-     * @param $filteredUsers
-     * @param $parameter
-     * @param $sort
      * @return mixed
      */
-    public function sort($filteredUsers, $parameter, $sort)
+    public function get()
     {
-        $logins = [];
-
-        foreach ($filteredUsers as $user) {
-            $logins[] = $user[$parameter];
-        }
-
-        switch ($sort) {
-            case 'ASC':
-                asort($logins);
-                break;
-            case "DESC":
-                arsort($logins);
-                break;
-        }
-
-        return $logins;
+        return $this->users;
     }
 
-    public function only($parameter)
+    /**
+     * @param $parameters
+     * @return array
+     */
+    public function only($parameters)
     {
-        //return $this->sort();
+        $users = [];
+
+        foreach ($this->users as $key => $user) {
+            foreach ($parameters as $parameter) {
+                $users[$key][] =
+                    $user->$parameter;
+            }
+        }
+
+        return array_values($users);
     }
 }
-
-$caller = new Caller();
-
-$users = $caller->make('https://api.github.com/users', 'get');
-
-$filteredUsers = $caller->where($users, 'site_admin', '=', false);
-
-$caller->sort($filteredUsers, 'login', 'DESC');
-
-$caller->only(['login']);
