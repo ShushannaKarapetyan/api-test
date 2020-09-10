@@ -1,13 +1,12 @@
 <?php
 
-use App\Caller;
-
 require 'vendor/autoload.php';
 
+use App\Caller;
+
 $users = (new Caller())->make('https://api.github.com/users', 'get')
-    ->where('id', '>=', 20)
+    ->where('id', '>=', 18)
     ->where('login', '!=', 'kevinclark')
-    ->where('id', '!=', 45)
     ->sort('id', 'desc')
     ->only(['login', 'id']);
 

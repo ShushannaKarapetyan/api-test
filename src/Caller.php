@@ -18,7 +18,7 @@ class Caller
      */
     public function make($api, $method)
     {
-        $this->users = (new Client())->request("$method", $api)->getBody();
+        $this->users = json_decode((new Client())->request($method, $api)->getBody());
 
         return $this;
     }
@@ -34,63 +34,67 @@ class Caller
     {
         $users = $this->users;
 
-        if (gettype($this->users) === 'object') {
-            $users = json_decode($this->users);
-        }
-
         switch ($operator) {
             case '=':
-                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                $this->users = array_filter($users, function ($user) use ($column, $value) {
                     if ($user->$column === $value) {
                         return $users[] = $user;
                     }
-                }, $users));
+                });
 
                 break;
 
             case ">":
-                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                $this->users = array_filter($users, function ($user) use ($column, $value) {
                     if ($user->$column > $value) {
                         return $users[] = $user;
                     }
-                }, $users));
+                });
 
                 break;
 
             case "<":
-                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                $this->users = array_filter($users, function ($user) use ($column, $value) {
                     if ($user->$column < $value) {
                         return $users[] = $user;
                     }
-                }, $users));
+                });
 
                 break;
 
             case ">=":
-                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                $this->users = array_filter($users, function ($user) use ($column, $value) {
                     if ($user->$column >= $value) {
                         return $users[] = $user;
                     }
-                }, $users));
+                });
 
                 break;
 
             case "<=":
-                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                $this->users = array_filter($users, function ($user) use ($column, $value) {
                     if ($user->$column <= $value) {
                         return $users[] = $user;
                     }
-                }, $users));
+                });
 
                 break;
 
             case '<>':
-            case "!=":
-                $this->users = array_filter(array_map(function ($user) use ($column, $value) {
+                $this->users = array_filter($users, function ($user) use ($column, $value) {
                     if ($user->$column <> $value) {
                         return $users[] = $user;
                     }
-                }, $users));
+                });
+
+                break;
+
+            case "!=":
+                $this->users = array_filter($users, function ($user) use ($column, $value) {
+                    if ($user->$column !== $value) {
+                        return $users[] = $user;
+                    }
+                });
 
                 break;
 
@@ -105,8 +109,8 @@ class Caller
      * @param $parameter
      * @param $sort
      * @return Caller
+     * @return Caller
      * @throws Exception
-     * @retur n Caller
      */
     public function sort($parameter, $sort)
     {
@@ -154,7 +158,7 @@ class Caller
      */
     public function get()
     {
-        return array_values($this->users);
+        return $this->users;
     }
 
     /**
@@ -167,11 +171,10 @@ class Caller
 
         foreach ($this->users as $key => $user) {
             foreach ($parameters as $parameter) {
-                $users[$key][] =
-                    $user->$parameter;
+                $users[$key][] = $user->$parameter;
             }
         }
 
-        return array_values($users);
+        return $users;
     }
 }
