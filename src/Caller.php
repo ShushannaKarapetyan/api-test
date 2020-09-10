@@ -121,11 +121,15 @@ class Caller
             case 'asc':
             case 'ASC':
                 asort($parameters);
+
                 break;
+
             case "desc":
             case "DESC":
                 arsort($parameters);
+
                 break;
+
             default:
                 throw new Exception('Sorting value can be asc or desc.');
         }
@@ -150,7 +154,7 @@ class Caller
      */
     public function get()
     {
-        return $this->users;
+        return array_values($this->users);
     }
 
     /**
