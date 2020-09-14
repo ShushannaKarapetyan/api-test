@@ -3,10 +3,15 @@
 namespace Tests\Unit;
 
 use App\Caller;
+use GuzzleHttp\Exception\GuzzleException;
 use PHPUnit\Framework\TestCase;
 
 class FunctionTest extends TestCase
 {
+    /**
+     * @return bool|string
+     * @throws GuzzleException
+     */
     public function getUsers()
     {
         return (new Caller())->make('https://api.github.com/users', 'get');
