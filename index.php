@@ -9,5 +9,3 @@ $users = (new Caller())->make('https://api.github.com/users', 'get')
     ->where('login', '!=', 'kevinclark')
     ->sort('id', 'desc')
     ->only(['login', 'id']);
-
-var_dump($users);

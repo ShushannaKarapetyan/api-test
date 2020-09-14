@@ -32,67 +32,65 @@ class Caller
      */
     public function where($column, $operator, $value)
     {
-        $users = $this->users;
-
         switch ($operator) {
             case '=':
-                $this->users = array_filter($users, function ($user) use ($column, $value) {
+                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
                     if ($user->$column === $value) {
-                        return $users[] = $user;
+                        return $this->users[] = $user;
                     }
                 });
 
                 break;
 
             case ">":
-                $this->users = array_filter($users, function ($user) use ($column, $value) {
+                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
                     if ($user->$column > $value) {
-                        return $users[] = $user;
+                        return $this->users[] = $user;
                     }
                 });
 
                 break;
 
             case "<":
-                $this->users = array_filter($users, function ($user) use ($column, $value) {
+                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
                     if ($user->$column < $value) {
-                        return $users[] = $user;
+                        return $this->users[] = $user;
                     }
                 });
 
                 break;
 
             case ">=":
-                $this->users = array_filter($users, function ($user) use ($column, $value) {
+                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
                     if ($user->$column >= $value) {
-                        return $users[] = $user;
+                        return $this->users[] = $user;
                     }
                 });
 
                 break;
 
             case "<=":
-                $this->users = array_filter($users, function ($user) use ($column, $value) {
+                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
                     if ($user->$column <= $value) {
-                        return $users[] = $user;
+                        return $this->users[] = $user;
                     }
                 });
 
                 break;
 
             case '<>':
-                $this->users = array_filter($users, function ($user) use ($column, $value) {
+                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
                     if ($user->$column <> $value) {
-                        return $users[] = $user;
+                        return $this->users[] = $user;
                     }
                 });
 
                 break;
 
             case "!=":
-                $this->users = array_filter($users, function ($user) use ($column, $value) {
+                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
                     if ($user->$column !== $value) {
-                        return $users[] = $user;
+                        return $this->users[] = $user;
                     }
                 });
 
@@ -106,31 +104,32 @@ class Caller
     }
 
     /**
-     * @param $parameter
+     * @param $property
      * @param $sort
-     * @return Caller
      * @return Caller
      * @throws Exception
      */
-    public function sort($parameter, $sort)
+    public function sort($property, $sort)
     {
-        $parameters = [];
+        $properties = [];
         $usersArray = [];
 
         foreach ($this->users as $key => $user) {
-            $parameters[$user->id][] = $user->$parameter;
+            if ($user->$property) {
+                $properties[$user->id][] = $user->$property;
+            }
         }
 
         switch ($sort) {
             case 'asc':
             case 'ASC':
-                asort($parameters);
+                asort($properties);
 
                 break;
 
             case "desc":
             case "DESC":
-                arsort($parameters);
+                arsort($properties);
 
                 break;
 
@@ -138,7 +137,7 @@ class Caller
                 throw new Exception('Sorting value can be asc or desc.');
         }
 
-        $userIds = array_keys($parameters);
+        $userIds = array_keys($properties);
 
         foreach ($userIds as $id) {
             foreach ($this->users as $user) {
@@ -162,16 +161,16 @@ class Caller
     }
 
     /**
-     * @param $parameters
+     * @param $properties
      * @return array
      */
-    public function only($parameters)
+    public function only($properties)
     {
         $users = [];
 
         foreach ($this->users as $key => $user) {
-            foreach ($parameters as $parameter) {
-                $users[$key][] = $user->$parameter;
+            foreach ($properties as $property) {
+                $users[$key][] = $user->$property;
             }
         }
 
