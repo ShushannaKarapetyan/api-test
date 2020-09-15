@@ -8,172 +8,235 @@ use GuzzleHttp\Exception\GuzzleException;
 
 class Caller
 {
-    public $users;
+    /**
+     * @var Client
+     */
+    private $client;
 
     /**
-     * @param $api
-     * @param $method
-     * @return bool|string
+     * @var array
+     */
+    private $availableMethods = [
+        'GET',
+        'HEAD',
+        'POST',
+        'PUT',
+        'PATCH',
+        'DELETE',
+    ];
+
+    /**
+     * @var array
+     */
+    protected $data = [];
+
+    /**
+     * Caller constructor.
+     */
+    public function __construct()
+    {
+        $this->client = new Client();
+    }
+
+    /**
+     * @param string $api
+     * @param string $method
+     * @return Caller
      * @throws GuzzleException
      */
-    public function make($api, $method)
+    public function make(string $api, string $method): Caller
     {
-        $this->users = json_decode((new Client())->request($method, $api)->getBody());
+        $method = strtoupper($method);
+
+        $this->checkMethod($method);
+
+        $this->data = json_decode($this->client->request($method, $api)->getBody()->getContents(), true);
 
         return $this;
     }
 
     /**
-     * @param $column
-     * @param $operator
+     * @param string $path
+     * @return Caller
+     * @throws Exception
+     */
+    public function root(string $path): Caller
+    {
+        $segments = explode('.', $path);
+
+        foreach ($segments as $segment) {
+            if (!in_array($segment, array_keys($this->data))) {
+                throw new Exception("The path \"{$segment}\" does not exist.", 400);
+            }
+
+            $this->data = $this->data[$segment];
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string $param
+     * @param string $operator
      * @param $value
      * @return mixed
      * @throws Exception
      */
-    public function where($column, $operator, $value)
+    public function where(string $param, string $operator, $value): Caller
     {
+        $this->checkParamExists(data_keys($this->data), $param);
+
         switch ($operator) {
             case '=':
-                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
-                    if ($user->$column === $value) {
-                        return $this->users[] = $user;
+                $this->data = array_filter($this->data, function ($user) use ($param, $value) {
+                    if ($user[$param] === $value) {
+                        return $this->data[] = $user;
                     }
                 });
 
                 break;
 
             case ">":
-                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
-                    if ($user->$column > $value) {
-                        return $this->users[] = $user;
+                $this->data = array_filter($this->data, function ($user) use ($param, $value) {
+                    if ($user[$param] > $value) {
+                        return $this->data[] = $user;
                     }
                 });
 
                 break;
 
             case "<":
-                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
-                    if ($user->$column < $value) {
-                        return $this->users[] = $user;
+                $this->data = array_filter($this->data, function ($user) use ($param, $value) {
+                    if ($user[$param] < $value) {
+                        return $this->data[] = $user;
                     }
                 });
 
                 break;
 
             case ">=":
-                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
-                    if ($user->$column >= $value) {
-                        return $this->users[] = $user;
+                $this->data = array_filter($this->data, function ($user) use ($param, $value) {
+                    if ($user[$param] >= $value) {
+                        return $this->data[] = $user;
                     }
                 });
 
                 break;
 
             case "<=":
-                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
-                    if ($user->$column <= $value) {
-                        return $this->users[] = $user;
-                    }
-                });
-
-                break;
-
-            case '<>':
-                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
-                    if ($user->$column <> $value) {
-                        return $this->users[] = $user;
+                $this->data = array_filter($this->data, function ($user) use ($param, $value) {
+                    if ($user[$param] <= $value) {
+                        return $this->data[] = $user;
                     }
                 });
 
                 break;
 
             case "!=":
-                $this->users = array_filter($this->users, function ($user) use ($column, $value) {
-                    if ($user->$column !== $value) {
-                        return $this->users[] = $user;
+                $this->data = array_filter($this->data, function ($user) use ($param, $value) {
+                    if ($user[$param] !== $value) {
+                        return $this->data[] = $user;
                     }
                 });
 
                 break;
 
             default:
-                throw new Exception('Operator is not correct.');
+                throw new Exception('The operator is not supported.', 400);
         }
 
         return $this;
     }
 
     /**
-     * @param $property
-     * @param $sort
+     * @param string $param
+     * @param string $order
      * @return Caller
      * @throws Exception
      */
-    public function sort($property, $sort)
+    public function sort(string $param, string $order): Caller
     {
-        $properties = [];
+        $params = [];
         $usersArray = [];
 
-        foreach ($this->users as $key => $user) {
-            if ($user->$property) {
-                $properties[$user->id][] = $user->$property;
-            }
+        $order = strtolower($order);
+
+        if (!in_array($order, ['asc', 'desc'])) {
+            throw new Exception("Supported sort directions are ASC and DESC.", 400);
         }
 
-        switch ($sort) {
-            case 'asc':
-            case 'ASC':
-                asort($properties);
+        $this->checkParamExists(data_keys($this->data), $param);
 
-                break;
-
-            case "desc":
-            case "DESC":
-                arsort($properties);
-
-                break;
-
-            default:
-                throw new Exception('Sorting value can be asc or desc.');
+        foreach ($this->data as $key => $user) {
+            $params[$user[$param]][] = $user[$param];
         }
 
-        $userIds = array_keys($properties);
+        $order === 'desc' ? arsort($params, SORT_REGULAR)
+            : asort($params, SORT_REGULAR);
+
+        $userIds = array_keys($params);
 
         foreach ($userIds as $id) {
-            foreach ($this->users as $user) {
-                if ($user->id === $id) {
+            foreach ($this->data as $user) {
+                if ($user[$param] === $id) {
                     $usersArray[] = $user;
                 }
             }
         }
 
-        $this->users = $usersArray;
+        $this->data = $usersArray;
 
         return $this;
     }
 
     /**
-     * @return mixed
+     * @return array
      */
-    public function get()
+    public function get(): array
     {
-        return array_values($this->users);
+        return $this->data;
     }
 
     /**
-     * @param $properties
+     * @param array $params
      * @return array
+     * @throws Exception
      */
-    public function only($properties)
+    public function only(array $params): array
     {
         $users = [];
 
-        foreach ($this->users as $key => $user) {
-            foreach ($properties as $property) {
-                $users[$key][] = $user->$property;
+        foreach ($this->data as $key => $user) {
+            foreach ($params as $param) {
+                $this->checkParamExists(data_keys($this->data), $param);
+
+                $users[$key][$param] = $user[$param];
             }
         }
 
-        return array_values($users);
+        return $users;
+    }
+
+    /**
+     * @param string $method
+     * @throws Exception
+     */
+    private function checkMethod(string $method): void
+    {
+        if (!in_array($method, $this->availableMethods)) {
+            throw new Exception("The method \"{$method}\" is not supported.", 400);
+        }
+    }
+
+    /**
+     * @param array $keys
+     * @param string $param
+     * @throws Exception
+     */
+    private function checkParamExists(array $keys, string $param): void
+    {
+        if (!in_array($param, $keys)) {
+            throw new Exception("The parameter \"{$param}\" does not exist in current data list.", 400);
+        }
     }
 }
